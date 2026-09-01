@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MU Online Multi-Map Fast Locator</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-dark: #0b0e14;
+            --panel-bg: rgba(18, 24, 38, 0.92);
+            --gold-border: #c5a059;
+            --gold-glow: rgba(197, 160, 89, 0.4);
+            --point-a: #00d2ff;
+            --point-b: #ff3860;
+            --text-light: #e6ebf5;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+        }
+
+        /* Sidebar Control Panel */
+        #sidebar {
+            width: 350px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            border-right: 2px solid var(--gold-border);
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 1000;
+            box-shadow: 5px 0 25px rgba(0,0,0,0.8);
+            overflow-y: auto;
+        }
+
+        .game-title {
+            font-family: 'Cinzel', serif;
+            font-size: 1.2rem;
+            color: var(--gold-border);
+            text-align: center;
+            text-shadow: 0 0 10px var(--gold-glow);
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(197, 160, 89, 0.3);
+            padding-bottom: 8px;
+        }
+
+        .panel-box {
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(197, 160, 89, 0.2);
+            border-radius: 6px;
+            padding: 11px;
+        }
+
+        .panel-box h3 {
+            font-family: 'Cinzel', serif;
+            font-size: 0.8rem;
+            color: var(--gold-border);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Map Selector Dropdown */
+        select.map-select {
+            width: 100%;
+            background: #06080c;
+            border: 1px solid var(--gold-border);
+            color: #ffd700;
+            padding: 8px 10px;
+            border-radius: 4px;
+            font-family: 'Cinzel', serif;
+            font-weight: bold;
+            font-size: 0.9rem;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        select.map-select:focus {
+            box-shadow: 0 0 10px var(--gold-glow);
+            border-color: #ffd700;
+        }
+
+        select.map-select option {
+            background: #0f141f;
+            color: #fff;
+            padding: 6px;
+        }
+
+        /* Realtime Coordinate Display */
+        .live-coord {
+            font-size: 1.15rem;
+            font-weight: bold;
+            color: var(--gold-border);
+            text-align: center;
+            font-family: monospace;
+            background: #05070a;
+            padding: 6px;
+            border-radius: 4px;
+            border: 1px dashed rgba(197, 160, 89, 0.4);
+        }
+
+        /* Points Input Groups */
+        .point-box {
+            border-left: 3px solid;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 0 4px 4px 0;
+        }
+
+        .point-box.point-a { border-color: var(--point-a); }
+        .point-box.point-b { border-color: var(--point-b); }
+
+        .point-title {
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .point-a .point-title { color: var(--point-a); }
+        .point-b .point-title { color: var(--point-b); }
+
+        .coord-inputs {
+            display: flex;
+            gap: 8px;
+        }
+
+        .input-group {
+            flex: 1;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.65rem;
+            color: #8fa0b5;
+            margin-bottom: 2px;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            background: #06080c;
+            border: 1px solid rgba(197, 160, 89, 0.4);
+            color: #fff;
+            padding: 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            outline: none;
+            text-align: center;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        input[type="number"]:focus {
+            border-color: var(--gold-border);
+            box-shadow: 0 0 8px var(--gold-glow);
+            background: #0d121c;
+        }
+
+        /* Action Buttons */
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        button {
+            flex: 1;
+            background: linear-gradient(180deg, #d4af37 0%, #8a6d1c 100%);
+            border: 1px solid #ffe89e;
+            color: #000;
+            padding: 7px;
+            font-weight: bold;
+            font-family: 'Cinzel', serif;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button.btn-clear {
+            background: linear-gradient(180deg, #444 0%, #222 100%);
+            border: 1px solid #777;
+            color: #ccc;
+        }
+
+        button:hover {
+            filter: brightness(1.2);
+            box-shadow: 0 0 10px var(--gold-glow);
+        }
+
+        /* Stats Results */
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-value {
+            font-family: monospace;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        /* Map Container */
+        #map-container {
+            flex: 1;
+            height: 100vh;
+            background: #05070a;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background-color: #05070a;
+        }
+
+        /* Loading Spinner Overlay */
+        #mapLoader {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(5, 7, 10, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: opacity 0.25s ease;
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        #mapLoader.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .spinner {
+            width: 45px;
+            height: 45px;
+            border: 3px solid rgba(197, 160, 89, 0.2);
+            border-top: 3px solid #d4af37;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            box-shadow: 0 0 15px var(--gold-glow);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .spinner-text {
+            font-family: 'Cinzel', serif;
+            font-size: 0.85rem;
+            color: var(--gold-border);
+            letter-spacing: 1px;
+        }
+
+        /* Custom Markers */
+        .marker-pin {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            color: #fff;
+            font-weight: bold;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #fff;
+            box-shadow: 0 0 12px rgba(0,0,0,0.8);
+            animation: popIn 0.2s ease-out;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); }
+            80% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .pin-a { background: var(--point-a); box-shadow: 0 0 15px var(--point-a); }
+        .pin-b { background: var(--point-b); box-shadow: 0 0 15px var(--point-b); }
+
+        .origin-badge {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid var(--gold-border);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: var(--gold-border);
+            z-index: 500;
+            pointer-events: none;
+            font-family: 'Cinzel', serif;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Controls -->
+    <div id="sidebar">
+        <h1 class="game-title" id="currentMapTitle">NORIA</h1>
+
+        <!-- Map Selector Box -->
+        <div class="panel-box">
+            <h3>Chọn Bản Đồ (Map)</h3>
+            <select class="map-select" id="mapSelect" onchange="onMapChange(this.value)">
+                <!-- Điền tự động bằng Javascript -->
+            </select>
+        </div>
+
+        <!-- Realtime Coordinate Display -->
+        <div class="panel-box">
+            <h3>Tọa độ con trỏ [X, Y]</h3>
+            <div class="live-coord" id="cursorCoord">X: 0 | Y: 0</div>
+        </div>
+
+        <!-- Coordinates Input Form -->
+        <div class="panel-box">
+            <h3>Tọa độ (Tự động cập nhật ⚡)</h3>
+            
+            <!-- Point A -->
+            <div class="point-box point-a">
+                <div class="point-title">
+                    <span>ĐIỂM A (Điểm 1)</span>
+                    <span id="labelA">[Chưa chọn]</span>
+                </div>
+                <div class="coord-inputs">
+                    <div class="input-group">
+                        <label>X (Dọc: 0-255)</label>
+                        <input type="number" id="x1" min="0" max="255" value="100" placeholder="0-255">
+                    </div>
+                    <div class="input-group">
+                        <label>Y (Ngang: 0-255)</label>
+                        <input type="number" id="y1" min="0" max="255" value="100" placeholder="0-255">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Point B -->
+            <div class="point-box point-b">
+                <div class="point-title">
+                    <span>ĐIỂM B (Điểm 2)</span>
+                    <span id="labelB">[Chưa chọn]</span>
+                </div>
+                <div class="coord-inputs">
+                    <div class="input-group">
+                        <label>X (Dọc: 0-255)</label>
+                        <input type="number" id="x2" min="0" max="255" value="150" placeholder="0-255">
+                    </div>
+                    <div class="input-group">
+                        <label>Y (Ngang: 0-255)</label>
+                        <input type="number" id="y2" min="0" max="255" value="170" placeholder="0-255">
+                    </div>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button onclick="focusView()" title="Căn góc nhìn bao trọn 2 điểm">🔍 Căn giữa</button>
+                <button class="btn-clear" onclick="clearAll()" title="Xóa tất cả">🗑️ Xóa</button>
+            </div>
+        </div>
+
+        <!-- Statistics Analysis Box -->
+        <div class="panel-box">
+            <h3>Thông số đo đạc & Phạm vi</h3>
+            <div class="stat-row">
+                <span>Khoảng cách chim bay:</span>
+                <span class="stat-value" id="distEuclid">-- tiles</span>
+            </div>
+            <div class="stat-row">
+                <span>Bước đi (Grid / Manhattan):</span>
+                <span class="stat-value" id="distGrid">-- bước</span>
+            </div>
+            <div class="stat-row">
+                <span>Độ chênh (ΔX, ΔY):</span>
+                <span class="stat-value" id="deltaCoord">--</span>
+            </div>
+            <div class="stat-row">
+                <span>Diện tích vùng bao:</span>
+                <span class="stat-value" id="areaSize">-- ô</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Viewport -->
+    <div id="map-container">
+        <!-- Spinner Loading -->
+        <div id="mapLoader">
+            <div class="spinner"></div>
+            <div class="spinner-text">ĐANG TẢI DỮ LIỆU BẢN ĐỒ...</div>
+        </div>
+
+        <div class="origin-badge" id="mapBadge">🗺️ Noria | ↖ [X:0, Y:0]</div>
+        <div id="map"></div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        const MAP_DATA = {
+            noria: { name: "Noria", img: "https://muonlinefanz.com/tools/maps/data/graphics/Noria/map.jpg" },
+            lorencia: { name: "Lorencia", img: "https://muonlinefanz.com/tools/maps/data/graphics/Lorencia/map.jpg" },
+            devias: { name: "Devias", img: "https://muonlinefanz.com/tools/maps/data/graphics/Devias/map.jpg" },
+            elveland: { name: "Elveland", img: "https://muonlinefanz.com/tools/maps/data/graphics/Elveland/map.jpg" },
+            kanturu: { name: "Kanturu Ruins", img: "https://muonlinefanz.com/tools/maps/data/graphics/Kanturu%20Ruins/map.jpg" },
+            karutan1: { name: "Karutan 1", img: "https://muonlinefanz.com/tools/maps/data/graphics/Karutan/map.jpg" },
+            karutan2: { name: "Karutan 2", img: "https://muonlinefanz.com/tools/maps/data/graphics/Karutan/map2.jpg" },
+            ferea: { name: "Ferea", img: "https://i.ibb.co/gZxjvnMj/ferea-new.png" }
+        };
+
+        const MAP_SIZE = 256;
+        const bounds = [[0, 0], [MAP_SIZE, MAP_SIZE]];
+        let currentMapKey = 'noria';
+
+        // =======================================================
+        // 🚀 PRELOAD TOÀN BỘ ẢNH BẢN ĐỒ VÀO RAM (CHẠY NGẦM)
+        // =======================================================
+        const preloadedImages = {};
+        function preloadAllMapImages() {
+            Object.keys(MAP_DATA).forEach(key => {
+                const img = new Image();
+                img.src = MAP_DATA[key].img;
+                preloadedImages[key] = img;
+            });
+        }
+        preloadAllMapImages(); // Kích hoạt nạp cache ngay lập tức
+
+        // 1. Khởi tạo Dropdown Map
+        const mapSelectElem = document.getElementById('mapSelect');
+        Object.keys(MAP_DATA).forEach(key => {
+            const option = document.createElement('option');
+            option.value = key;
+            option.textContent = MAP_DATA[key].name;
+            if (key === currentMapKey) option.selected = true;
+            mapSelectElem.appendChild(option);
+        });
+
+        // 2. Khởi tạo Bản đồ Leaflet
+        const map = L.map('map', {
+            crs: L.CRS.Simple,
+            minZoom: -1,
+            maxZoom: 3,
+            maxBounds: bounds,
+            maxBoundsViscosity: 1.0,
+            attributionControl: false
+        });
+
+        let currentImageOverlay = L.imageOverlay(MAP_DATA[currentMapKey].img, bounds).addTo(map);
+        map.fitBounds(bounds);
+
+        // =======================================================
+        // ⚡ HÀM ĐỔI BẢN ĐỒ SIÊU TỐC VỚI BỘ ĐỆM TỰ ĐỘNG
+        // =======================================================
+        const mapLoader = document.getElementById('mapLoader');
+
+        function onMapChange(key) {
+            if (!MAP_DATA[key]) return;
+            currentMapKey = key;
+
+            const targetImgUrl = MAP_DATA[key].img;
+            const cachedImg = preloadedImages[key];
+
+            // Nếu ảnh đã nạp xong trong RAM -> Thay đổi ngay 0ms
+            if (cachedImg && cachedImg.complete) {
+                currentImageOverlay.setUrl(targetImgUrl);
+            } else {
+                // Nếu chưa nạp xong (mạng yếu) -> Hiện vòng xoay hiệu ứng MU
+                mapLoader.classList.add('active');
+                const tempImg = new Image();
+                tempImg.src = targetImgUrl;
+                tempImg.onload = () => {
+                    currentImageOverlay.setUrl(targetImgUrl);
+                    mapLoader.classList.remove('active');
+                };
+                tempImg.onerror = () => {
+                    mapLoader.classList.remove('active');
+                };
+            }
+
+            // Cập nhật tiêu đề & nhãn
+            document.getElementById('currentMapTitle').innerText = MAP_DATA[key].name.toUpperCase();
+            document.getElementById('mapBadge').innerText = `🗺️ ${MAP_DATA[key].name} | ↖ [X:0, Y:0]`;
+
+            updateMapRealtime(false);
+        }
+
+        // ==========================================
+        // CÔNG THỨC MATRIX [X, Y]:
+        // X = Dọc (0 -> 255) | Y = Ngang (0 -> 255)
+        // ==========================================
+        function leafletToGame(latlng) {
+            let x = Math.floor(MAP_SIZE - latlng.lat);
+            let y = Math.floor(latlng.lng);
+            return {
+                x: Math.max(0, Math.min(255, x)),
+                y: Math.max(0, Math.min(255, y))
+            };
+        }
+
+        function gameToLeaflet(x, y) {
+            return [(MAP_SIZE - 1) - x + 0.5, y + 0.5];
+        }
+
+        // ==========================================
+        // QUẢN LÝ VẼ & TÍNH TOÁN REALTIME
+        // ==========================================
+        let markerA = null, markerB = null;
+        let connectionLine = null;
+        let areaBox = null;
+        let clickToggle = 0;
+
+        const iconA = L.divIcon({
+            className: 'custom-icon',
+            html: '<div class="marker-pin pin-a">A</div>',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+
+        const iconB = L.divIcon({
+            className: 'custom-icon',
+            html: '<div class="marker-pin pin-b">B</div>',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+
+        map.on('mousemove', function(e) {
+            const { x, y } = leafletToGame(e.latlng);
+            document.getElementById('cursorCoord').innerText = `X: ${x} | Y: ${y}`;
+        });
+
+        function parseCoord(val) {
+            if (val === '' || isNaN(val)) return null;
+            let num = parseInt(val, 10);
+            if (num < 0) num = 0;
+            if (num > 255) num = 255;
+            return num;
+        }
+
+        function updateMapRealtime(autoZoom = false) {
+            const x1 = parseCoord(document.getElementById('x1').value);
+            const y1 = parseCoord(document.getElementById('y1').value);
+            const x2 = parseCoord(document.getElementById('x2').value);
+            const y2 = parseCoord(document.getElementById('y2').value);
+
+            const hasA = (x1 !== null && y1 !== null);
+            const hasB = (x2 !== null && y2 !== null);
+
+            let posA = null, posB = null;
+
+            // Xử lý Điểm A
+            if (hasA) {
+                posA = gameToLeaflet(x1, y1);
+                if (markerA) markerA.setLatLng(posA);
+                else markerA = L.marker(posA, { icon: iconA }).addTo(map);
+                markerA.bindPopup(`<b>[${MAP_DATA[currentMapKey].name}] Điểm A</b>: [${x1}, ${y1}]`);
+                document.getElementById('labelA').innerText = `[${x1}, ${y1}]`;
+            } else {
+                if (markerA) { map.removeLayer(markerA); markerA = null; }
+                document.getElementById('labelA').innerText = `[Chưa chọn]`;
+            }
+
+            // Xử lý Điểm B
+            if (hasB) {
+                posB = gameToLeaflet(x2, y2);
+                if (markerB) markerB.setLatLng(posB);
+                else markerB = L.marker(posB, { icon: iconB }).addTo(map);
+                markerB.bindPopup(`<b>[${MAP_DATA[currentMapKey].name}] Điểm B</b>: [${x2}, ${y2}]`);
+                document.getElementById('labelB').innerText = `[${x2}, ${y2}]`;
+            } else {
+                if (markerB) { map.removeLayer(markerB); markerB = null; }
+                document.getElementById('labelB').innerText = `[Chưa chọn]`;
+            }
+
+            // Xử lý Dây nối & Vùng bao
+            if (hasA && hasB) {
+                if (connectionLine) connectionLine.setLatLngs([posA, posB]);
+                else {
+                    connectionLine = L.polyline([posA, posB], {
+                        color: '#ffd700',
+                        weight: 2.5,
+                        dashArray: '6, 8',
+                        opacity: 0.9
+                    }).addTo(map);
+                }
+
+                const boxBounds = [
+                    [Math.min(posA[0], posB[0]) - 0.5, Math.min(posA[1], posB[1]) - 0.5],
+                    [Math.max(posA[0], posB[0]) + 0.5, Math.max(posA[1], posB[1]) + 0.5]
+                ];
+
+                if (areaBox) areaBox.setBounds(boxBounds);
+                else {
+                    areaBox = L.rectangle(boxBounds, {
+                        color: '#00d2ff',
+                        weight: 1,
+                        fillColor: '#00d2ff',
+                        fillOpacity: 0.15,
+                        dashArray: '3, 4'
+                    }).addTo(map);
+                }
+
+                const dx = Math.abs(x2 - x1);
+                const dy = Math.abs(y2 - y1);
+                const euclidDist = Math.sqrt(dx * dx + dy * dy).toFixed(1);
+                const gridDist = dx + dy;
+                const area = (dx + 1) * (dy + 1);
+
+                document.getElementById('distEuclid').innerText = `${euclidDist} tiles`;
+                document.getElementById('distGrid').innerText = `${gridDist} bước`;
+                document.getElementById('deltaCoord').innerText = `ΔX: ${dx} | ΔY: ${dy}`;
+                document.getElementById('areaSize').innerText = `${area} ô (${dx+1}x${dy+1})`;
+
+                if (autoZoom) {
+                    map.fitBounds([posA, posB], { padding: [60, 60] });
+                }
+            } else {
+                if (connectionLine) { map.removeLayer(connectionLine); connectionLine = null; }
+                if (areaBox) { map.removeLayer(areaBox); areaBox = null; }
+
+                document.getElementById('distEuclid').innerText = `-- tiles`;
+                document.getElementById('distGrid').innerText = `-- bước`;
+                document.getElementById('deltaCoord').innerText = `--`;
+                document.getElementById('areaSize').innerText = `-- ô`;
+            }
+        }
+
+        // Lắng nghe sự kiện gõ phím
+        ['x1', 'y1', 'x2', 'y2'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => updateMapRealtime(false));
+        });
+
+        // Click trên map chọn điểm
+        map.on('click', function(e) {
+            const { x, y } = leafletToGame(e.latlng);
+            if (clickToggle === 0) {
+                document.getElementById('x1').value = x;
+                document.getElementById('y1').value = y;
+                clickToggle = 1;
+            } else {
+                document.getElementById('x2').value = x;
+                document.getElementById('y2').value = y;
+                clickToggle = 0;
+            }
+            updateMapRealtime(false);
+        });
+
+        function focusView() {
+            updateMapRealtime(true);
+        }
+
+        function clearAll() {
+            document.getElementById('x1').value = '';
+            document.getElementById('y1').value = '';
+            document.getElementById('x2').value = '';
+            document.getElementById('y2').value = '';
+            clickToggle = 0;
+            updateMapRealtime(false);
+        }
+
+        // Tự động khởi chạy lần đầu
+        updateMapRealtime(true);
+    </script>
+</body>
+</html>
