@@ -4,8 +4,12 @@
     <meta charset="UTF-8">
     <title>OBS Date Time</title>
     <!-- Font đơn cách chống nhảy số -->
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
+		@font-face {
+		font-family: 'digitalfont';
+		src: url('../digital-7-mono.ttf');
+		}
+		
         body {
             background-color: rgba(0, 0, 0, 0); /* Nền trong suốt */
             margin: 0;
@@ -18,7 +22,7 @@
         }
 
         #datetime {
-            font-family: 'Share Tech Mono', monospace;
+            font-family: 'digitalfont', monospace;
             font-size: 80px; /* Bạn có thể chỉnh to nhỏ tùy ý */
             color: #09ff00;  /* Màu xanh Neon */
             text-shadow: 0 0 20px rgba(0, 255, 242, 0.8), 4px 4px 5px rgba(0,0,0,1);
@@ -33,7 +37,7 @@
 </head>
 <body>
 
-    <div id="datetime">00/00/0000</div>
+    <div id="datetime">00/00/0000 00:00:00</div>
 
     <script>
         function updateDateTime() {
